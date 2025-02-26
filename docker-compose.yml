@@ -1,0 +1,22 @@
+version: '2.2'
+services:
+  es01:
+    image: 'bitnami/elasticsearch:latest'
+    container_name: es01
+    environment:
+      - ELASTICSEARCH_CLUSTER_NAME=netologyFKS
+    
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+volumes:
+  data01:
+    driver: local
+
+networks:
+  elastic:
+    driver: bridge
