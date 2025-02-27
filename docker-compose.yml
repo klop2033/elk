@@ -1,8 +1,8 @@
-version: '2.2'
+version: '3.3'
 services:
-  es01:
+  ELASTIC:
     image: 'bitnami/elasticsearch:latest'
-    container_name: es01
+    container_name: ELASTIC
     environment:
       - ELASTICSEARCH_CLUSTER_NAME=netologyFKS
     
@@ -10,6 +10,56 @@ services:
       - data01:/usr/share/elasticsearch/data
     ports:
       - 9200:9200
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - elastic
+  es02:
+    image: 'kibana:8.15.5'
+    container_name: Kibana
+    environment:
+     - ELASTICSEARCH_HOSTS=http://ELASTIC:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      ELASTIC:
+        condition: service_healthy
+    networks:
+      - elastic
+
+  nginx:
+    image: 'nginx:latest'
+    container_name: nginx
+    ports:
+      - "81:80"
+    volumes:
+      - ./nginx_logs:/var/log/nginx
+    networks:
+      - elastic
+
+  logstash:
+    image: bitnami/logstash:8.10.0
+    container_name: logstash
+    environment:
+      - LOGSTASH_CONF_STRING=input { file { path => "/usr/share/logstash/logs/nginx/access.log" start_position => "beginning" sincedb_path => "/dev/null" } } filter { grok { match => { "message" => "%{COMBINEDAPACHELOG}" } } } output { elasticsearch { hosts => ["ELASTIC:9200"] index => "nginx-logs-%{+YYYY.MM.dd}" } stdout { codec => rubydebug } }
+    volumes:
+      - ./nginx_logs:/usr/share/logstash/logs/nginx
+    depends_on:
+      - ELASTIC
+    networks:
+      - elastic
+
+  filebeat:
+    image: elastic/filebeat:7.17.28
+    container_name: filebeat
+    volumes:
+      - ./nginx_logs:/var/log/nginx 
+      - ./filebeat.yml:/home/tet/elk/filebeat.yml
+    depends_on:
+      - ELASTIC
     networks:
       - elastic
 
